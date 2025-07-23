@@ -1,0 +1,21 @@
+[project]
+name = "cordially"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "cordially-sdk==0.2.0",
+    "humanize>=4.12.3",
+    "python-fasthtml>=0.12.21",
+]
+
+[[tool.uv.index]]
+name = "palantir-cordially"
+url = "https://figbert.usw-18.palantirfoundry.com/artifacts/api/repositories/ri.artifacts.main.repository.e52652ac-c723-467b-a366-af0b20ba3e5e/contents/release/pypi/simple"
+authenticate = "always"
+
+[[tool.uv.index]]
+name = "palantir-foundry"
+url = "https://figbert.usw-18.palantirfoundry.com/artifacts/api/repositories/ri.foundry-sdk-asset-bundle.main.artifacts.repository/contents/release/pypi/simple"
+authenticate = "always"
