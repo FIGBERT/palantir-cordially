@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from cordially_sdk import UserTokenAuth, FoundryClient
-from cordially_sdk.ontology.objects import Event, Letter
+from cordially_sdk.ontology.objects import Event, Letter, Rsvp
 from fasthtml.common import *
 import humanize
 
@@ -651,6 +651,33 @@ def get(ltr: str, rcp: str):
     timing = humanize.naturaldate(
         event.when if event.when is not None else datetime.today()
     ).capitalize()
+
+    is_rsvpd = (
+        len(
+            list(
+                client.ontology.objects.Rsvp.where(
+                    Rsvp.object_type.event_id == event.id
+                )
+                .where(Rsvp.object_type.recipient_id == recipient.id)
+                .iterate()
+            )
+        )
+        > 0
+    )
+    button = Button(
+        "RSVP",
+        hx_post=f"/rsvp?evt={event.id}&rcp={recipient.id}",
+        hx_swap="outerHTML",
+        style="display: block; margin-inline: auto;",
+    )
+    if is_rsvpd:
+        button = Button(
+            "Cancel",
+            hx_delete=f"/rsvp?evt={event.id}&rcp={recipient.id}",
+            hx_swap="outerHTML",
+            style=f"{DELETE_STYLE} display: block; margin-inline: auto;",
+        )
+
     return Title(event.name), Main(
         Article(
             P(f"Dear {recipient.honorific} {recipient.name},"),
@@ -660,7 +687,37 @@ def get(ltr: str, rcp: str):
             P(letter.content, style="white-space: pre-wrap;"),
             style="max-width: 25rem; margin-inline: auto;",
         ),
+        button,
         cls="container",
+    )
+
+
+@rt("/rsvp")
+def post(evt: str, rcp: str):
+    _ = client.ontology.actions.create_rsvp(event_id=evt, recipient_id=rcp)
+    return Button(
+        "Cancel",
+        hx_delete=f"/rsvp?evt={evt}&rcp={rcp}",
+        hx_swap="outerHTML",
+        style=f"{DELETE_STYLE} display: block; margin-inline: auto;",
+    )
+
+
+@rt("/rsvp")
+def delete(evt: str, rcp: str):
+    rsvp = list(
+        client.ontology.objects.Rsvp.where(Rsvp.object_type.event_id == evt)
+        .where(Rsvp.object_type.recipient_id == rcp)
+        .iterate()
+    )[0]
+    _ = client.ontology.actions.delete_rsvp(rsvp=rsvp)
+    return (
+        Button(
+            "RSVP",
+            hx_post=f"/rsvp?evt={evt}&rcp={rcp}",
+            hx_swap="outerHTML",
+            style="display: block; margin-inline: auto;",
+        ),
     )
 
 
