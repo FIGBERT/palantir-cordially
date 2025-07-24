@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "cordially-sdk==0.2.0",
+    "cordially-sdk==0.3.0",
     "humanize>=4.12.3",
     "python-fasthtml>=0.12.21",
 ]
