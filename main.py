@@ -629,4 +629,39 @@ def delete(id: str):
     return Redirect("/recipients")
 
 
+@rt("/view/{ltr}/{rcp}")
+def get(ltr: str, rcp: str):
+    letter = client.ontology.objects.Letter.get(ltr)
+    recipient = client.ontology.objects.Recipient.get(rcp)
+    if letter is None or recipient is None:
+        return Titled(
+            "Error", P("Not sure what happened."), A(Button("Back", href="/admin"))
+        )
+
+    event = client.ontology.objects.Event.get(letter.event_id)
+
+    is_member = (
+        len(list(recipient.letter().where(Letter.object_type.id == ltr).iterate())) > 0
+    )
+    if not is_member:
+        return Titled(
+            "None shall pass.", P("Are you lost?"), A(Button("Back", href="/admin"))
+        )
+
+    timing = humanize.naturaldate(
+        event.when if event.when is not None else datetime.today()
+    ).capitalize()
+    return Title(event.name), Main(
+        Article(
+            P(f"Dear {recipient.honorific} {recipient.name},"),
+            P(
+                f"You are cordially invited to {event.name} on {timing} at {event.location}."
+            ),
+            P(letter.content, style="white-space: pre-wrap;"),
+            style="max-width: 25rem; margin-inline: auto;",
+        ),
+        cls="container",
+    )
+
+
 serve()
