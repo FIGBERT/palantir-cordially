@@ -80,6 +80,12 @@ def get():
                             hx_get=f"/event/recipients?event={e.id}&letter={l.id}",
                             hx_target="body",
                         ),
+                        " • ",
+                        A(
+                            "View RSVPs",
+                            hx_get=f"/event/rsvps?id={e.id}",
+                            hx_target="body",
+                        ),
                     ),
                     name="event",
                 )
@@ -448,6 +454,27 @@ def delete(id: str, person: str):
             hx_trigger="click",
             style="padding: revert; line-height: unset;",
         )
+    )
+
+
+@rt("/event/rsvps")
+def get(id: str):
+    body = Div(P("No RSVPs"))
+    rsvps = list(
+        client.ontology.objects.Rsvp.where(Rsvp.object_type.event_id == id).iterate()
+    )
+    if len(rsvps) > 0:
+        elements = []
+        for rsvp in rsvps:
+            person = client.ontology.objects.Recipient.get(rsvp.recipient_id)
+            elements.append(Li(f"{person.honorific} {person.name} "))
+        body = Div(Ul(*elements))
+
+    e = client.ontology.objects.Event.get(id)
+    return Titled(
+        f"{e.name} RSVPs",
+        body,
+        Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
     )
 
 
