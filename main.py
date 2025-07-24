@@ -430,6 +430,16 @@ def delete(id: str, person: str):
     _ = client.ontology.actions.delete_recipient_lt_gt_letter(
         recipients=person, letter=id
     )
+
+    letter = client.ontology.objects.Letter.get(id)
+    rsvps = list(
+        client.ontology.objects.Rsvp.where(Rsvp.object_type.event_id == letter.event_id)
+        .where(Rsvp.object_type.recipient_id == person)
+        .iterate()
+    )
+    if len(rsvps) > 0:
+        _ = client.ontology.actions.delete_rsvp(rsvp=rsvps[0])
+
     return Div(
         Button(
             "+",
