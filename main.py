@@ -24,7 +24,7 @@ class EventForm:
 @rt("/")
 def get():
     return Title("Cordially"), Hgroup(
-        H1(f"Welcome to Cordially."),
+        H1("Welcome to Cordially."),
         P("This is not how you use the app."),
         cls="container",
         style="text-align: center;",
@@ -39,26 +39,47 @@ def get():
     events = list(
         client.ontology.objects.Event.order_by(Event.object_type.when.asc()).iterate()
     )
+
     if len(events) > 0:
-        body = Div(
-            *[
-                Article(
-                    e.name,
-                    Footer(
-                        e.location,
-                        Br(),
-                        humanize.naturaldate(
-                            e.when if e.when is not None else datetime.today()
-                        ).capitalize(),
+        elements = []
+        for e in events:
+            timing = humanize.naturaldate(
+                e.when if e.when is not None else datetime.today()
+            ).capitalize()
+            l = list(
+                client.ontology.objects.Letter.where(
+                    Letter.object_type.event_id == e.id
+                ).iterate()
+            )[0]
+
+            elements.append(
+                Details(
+                    Summary(e.name),
+                    Div(
+                        P("Dear <RECIPIENT>,"),
+                        P(
+                            f"You are cordially invited to {e.name} on {timing} at {e.location}."
+                        ),
+                        P(l.content, style="white-space: pre;"),
+                        A(
+                            "Event Details",
+                            hx_get=f"/event/edit?id={e.id}",
+                            hx_target="body",
+                        ),
+                        " • ",
+                        A(
+                            "Edit Letter",
+                            hx_get=f"/letter?id={l.id}",
+                            hx_target="body",
+                        ),
                     ),
-                    hx_get=f"/event/edit?id={e.id}",
-                    hx_target="body",
-                    style="width: 15rem;",
+                    name="event",
                 )
-                for e in events
-            ],
-            style="display: flex; justify-content: space-between; flex-wrap: wrap;",
-        )
+            )
+            elements.append(Hr())
+        if len(elements) > 1:
+            elements.pop()
+        body = Div(*elements)
 
     return Titled(
         f"Welcome, {user}.",
@@ -83,7 +104,7 @@ def delete(id: str):
 
 @rt("/event/edit")
 def get(id: str):
-    event = client.ontology.objects.Event.get(id=id)
+    event = client.ontology.objects.Event.get(id)
     if event is None:
         return Titled(
             "Error", P("Could not find this event"), A(Button("Back", href="/admin"))
@@ -172,7 +193,6 @@ def get(id: str):
                 hx_delete="/event",
                 hx_confirm="Are you sure you want to delete the event?",
             ),
-            Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
         ),
     )
 
@@ -301,11 +321,17 @@ def post(data: EventForm):
 
 @rt("/letter")
 def get(id: str):
+    letter = client.ontology.objects.Letter.get(id)
+    if letter is None:
+        return Titled(
+            "Error", P("Could not find this letter."), A(Button("Back", href="/admin"))
+        )
+
     return Titled(
         "Compose Letter",
         Form(
-            Input(type="hidden", name="id", value=id),
-            Textarea(name="content"),
+            Input(type="hidden", name="id", value=letter.id),
+            Textarea(letter.content, name="content"),
             Button("Save", hx_post="/letter"),
         ),
     )
