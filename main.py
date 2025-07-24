@@ -157,15 +157,14 @@ def get(id: str):
                 ),
                 cls="grid",
             ),
-            Button("Save", style="margin-inline-end: 1rem;"),
+            Button("Save", style="margin-inline-end: 1rem;", hx_post="/event/edit"),
             Button(
                 "Delete",
                 style="background-color: #d93526; border-color: #d93526; margin-inline-end: 1rem;",
                 hx_delete="/event",
+                hx_confirm="Are you sure you want to delete the event?",
             ),
             Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
-            action="/event/edit",
-            method="post",
         ),
     )
 
@@ -251,10 +250,13 @@ def get():
                 ),
                 cls="grid",
             ),
-            Button("Create", style="margin-inline-end: 1rem;"),
+            Button(
+                "Create",
+                style="margin-inline-end: 1rem;",
+                hx_post="/event/create",
+                hx_target="body",
+            ),
             Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
-            action="/event/create",
-            method="post",
         ),
     )
 
