@@ -349,25 +349,44 @@ def get(event: str, letter: str):
                 > 0
             )
 
-            button = "Oops"
+            buttons = []
             if is_member:
-                button = Button(
-                    "-",
-                    hx_delete=f"/event/recipients?id={letter}&person={person.id}",
-                    hx_swap="outerHTML",
-                    hx_trigger="click",
-                    style=f"{DELETE_STYLE} padding: revert; line-height: unset;",
+                buttons.append(
+                    Button(
+                        "-",
+                        hx_delete=f"/event/recipients?id={letter}&person={person.id}",
+                        hx_target="closest div",
+                        hx_swap="outerHTML",
+                        hx_trigger="click",
+                        style=f"{DELETE_STYLE} padding: revert; line-height: unset; margin-inline-end: 1rem;",
+                    )
+                )
+                buttons.append(
+                    Span(
+                        Button(
+                            "Link",
+                            hx_get=f"/event/link/show?ltr={letter}&rcp={person.id}",
+                            hx_target=f"closest span",
+                            hx_swap="outerHTML",
+                            hx_trigger="click",
+                            style="padding: revert; line-height: unset;",
+                            cls="secondary",
+                        ),
+                    )
                 )
             else:
-                button = Button(
-                    "+",
-                    hx_post=f"/event/recipients?id={letter}&person={person.id}",
-                    hx_swap="outerHTML",
-                    hx_trigger="click",
-                    style="padding: revert; line-height: unset;",
+                buttons.append(
+                    Button(
+                        "+",
+                        hx_post=f"/event/recipients?id={letter}&person={person.id}",
+                        hx_target="closest div",
+                        hx_swap="outerHTML",
+                        hx_trigger="click",
+                        style="padding: revert; line-height: unset; margin-inline-end: 1rem;",
+                    )
                 )
 
-            elements.append(Li(f"{person.honorific} {person.name} ", button))
+            elements.append(Li(f"{person.honorific} {person.name} ", Div(*buttons)))
         body = Div(Ul(*elements))
 
     e = client.ontology.objects.Event.get(event)
@@ -383,12 +402,26 @@ def post(id: str, person: str):
     _ = client.ontology.actions.create_recipient_lt_gt_letter(
         recipients=person, letter=id
     )
-    return Button(
-        "-",
-        hx_delete=f"/event/recipients?id={id}&person={person}",
-        hx_swap="outerHTML",
-        hx_trigger="click",
-        style=f"{DELETE_STYLE} padding: revert; line-height: unset;",
+    return Div(
+        Button(
+            "-",
+            hx_delete=f"/event/recipients?id={id}&person={person}",
+            hx_target="closest div",
+            hx_swap="outerHTML",
+            hx_trigger="click",
+            style=f"{DELETE_STYLE} padding: revert; line-height: unset; margin-inline-end: 1rem;",
+        ),
+        Span(
+            Button(
+                "Link",
+                hx_get=f"/event/link/show?ltr={id}&rcp={person}",
+                hx_target=f"closest span",
+                hx_swap="outerHTML",
+                hx_trigger="click",
+                style="padding: revert; line-height: unset;",
+                cls="secondary",
+            ),
+        ),
     )
 
 
@@ -397,12 +430,47 @@ def delete(id: str, person: str):
     _ = client.ontology.actions.delete_recipient_lt_gt_letter(
         recipients=person, letter=id
     )
-    return Button(
-        "+",
-        hx_post=f"/event/recipients?id={id}&person={person}",
-        hx_swap="outerHTML",
-        hx_trigger="click",
-        style="padding: revert; line-height: unset;",
+    return Div(
+        Button(
+            "+",
+            hx_post=f"/event/recipients?id={id}&person={person}",
+            hx_swap="outerHTML",
+            hx_trigger="click",
+            style="padding: revert; line-height: unset;",
+        )
+    )
+
+
+@rt("/event/link/show")
+def get(ltr: str, rcp: str):
+    return Span(
+        Input(type="text", value=f"/view/{ltr}/{rcp}", disabled=True),
+        Button(
+            "Hide",
+            hx_get=f"/event/link/hide?ltr={ltr}&rcp={rcp}",
+            hx_target=f"closest span",
+            hx_swap="outerHTML",
+            hx_trigger="click",
+            style="padding: revert; line-height: unset;",
+            cls="secondary",
+        ),
+        role="group",
+        style="margin-block-start: 1rem;",
+    )
+
+
+@rt("/event/link/hide")
+def get(ltr: str, rcp: str):
+    return Span(
+        Button(
+            "Link",
+            hx_get=f"/event/link/show?ltr={ltr}&rcp={rcp}",
+            hx_target=f"closest span",
+            hx_swap="outerHTML",
+            hx_trigger="click",
+            style="padding: revert; line-height: unset;",
+            cls="secondary",
+        ),
     )
 
 
