@@ -84,7 +84,13 @@ def get():
     return Titled(
         f"Welcome, {user}.",
         body,
-        Button("New Event", hx_get="/event/create", hx_target="body"),
+        Button(
+            "New Event",
+            hx_get="/event/create",
+            hx_target="body",
+            style="margin-inline-end: 1rem;",
+        ),
+        Button("Recipients", hx_get="/recipients", hx_target="body"),
     )
 
 
@@ -189,7 +195,7 @@ def get(id: str):
             Button("Save", style="margin-inline-end: 1rem;", hx_post="/event/edit"),
             Button(
                 "Delete",
-                style="background-color: #d93526; border-color: #d93526; margin-inline-end: 1rem;",
+                style="background-color: #d93526; border-color: #d93526;",
                 hx_delete="/event",
                 hx_confirm="Are you sure you want to delete the event?",
             ),
@@ -341,6 +347,137 @@ def get(id: str):
 def post(id: str, content: str):
     _ = client.ontology.actions.edit_letter(letter=id, content=content)
     return Redirect("/admin")
+
+
+@rt("/recipients")
+def get():
+    body = Div(P("No recipients"))
+    recipients = list(client.ontology.objects.Recipient.iterate())
+    if len(recipients) > 0:
+        elements = []
+        for person in recipients:
+            elements.append(
+                Li(
+                    f"{person.honorific} {person.name} (",
+                    A(
+                        "Edit",
+                        hx_get=f"/recipient/edit?id={person.id}",
+                        hx_target="body",
+                    ),
+                    ")",
+                )
+            )
+        body = Div(Ul(*elements))
+
+    return Titled(
+        "Recipients",
+        body,
+        Button(
+            "New Recipient",
+            hx_get="/recipient/create",
+            hx_target="body",
+            style="margin-inline-end: 1rem;",
+        ),
+        Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
+    )
+
+
+@rt("/recipient/create")
+def get():
+    return Titled(
+        "New Recipient",
+        Form(
+            Label(
+                "Honorific",
+                Input(type="text", id="hnr", name="hnr", placeholder="Prof."),
+                fr="hnr",
+            ),
+            Label(
+                "Name",
+                Input(type="text", id="name", name="name", placeholder="Diamond"),
+                fr="name",
+            ),
+            Button(
+                "Create",
+                style="margin-inline-end: 1rem;",
+                hx_post="/recipient/create",
+                hx_target="body",
+            ),
+            Button(
+                "Back", cls="secondary outline", hx_get="/recipients", hx_target="body"
+            ),
+        ),
+    )
+
+
+@rt("/recipient/create")
+def post(name: str, hnr: str):
+    _ = client.ontology.actions.create_recipient(name=name, honorific=hnr)
+    return Redirect("/recipients")
+
+
+@rt("/recipient/edit")
+def get(id: str):
+    recipient = client.ontology.objects.Recipient.get(id)
+    if recipient is None:
+        return Titled(
+            "Error",
+            P("Could not find this recipient"),
+            A(Button("Back", href="/recipients")),
+        )
+
+    return Titled(
+        "New Recipient",
+        Form(
+            Input(type="hidden", name="id", value=id),
+            Label(
+                "Honorific",
+                Input(
+                    type="text",
+                    id="hnr",
+                    name="hnr",
+                    placeholder="Prof.",
+                    value=recipient.honorific,
+                ),
+                fr="hnr",
+            ),
+            Label(
+                "Name",
+                Input(
+                    type="text",
+                    id="name",
+                    name="name",
+                    placeholder="Diamond",
+                    value=recipient.name,
+                ),
+                fr="name",
+            ),
+            Button(
+                "Save",
+                style="margin-inline-end: 1rem;",
+                hx_post="/recipient/edit",
+                hx_target="body",
+            ),
+            Button(
+                "Delete",
+                style="background-color: #d93526; border-color: #d93526;",
+                hx_delete="/recipient",
+                hx_confirm="Are you sure you want to delete the recipient?",
+            ),
+        ),
+    )
+
+
+@rt("/recipient/edit")
+def post(id: str, name: str, hnr: str):
+    _ = client.ontology.actions.edit_recipient(recipient=id, name=name, honorific=hnr)
+    return Redirect("/recipients")
+
+
+@rt("/recipient")
+def delete(id: str):
+    _ = client.ontology.actions.delete_recipient(recipient=id)
+    return Redirect("/recipients")
 
 
 serve()

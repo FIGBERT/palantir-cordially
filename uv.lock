@@ -116,14 +116,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cordially-sdk", specifier = "==0.3.0" },
+    { name = "cordially-sdk", specifier = "==0.4.0" },
     { name = "humanize", specifier = ">=4.12.3" },
     { name = "python-fasthtml", specifier = ">=0.12.21" },
 ]
 
 [[package]]
 name = "cordially-sdk"
-version = "0.3.0"
+version = "0.4.0"
 source = { registry = "https://figbert.usw-18.palantirfoundry.com/artifacts/api/repositories/ri.artifacts.main.repository.e52652ac-c723-467b-a366-af0b20ba3e5e/contents/release/pypi/simple" }
 dependencies = [
     { name = "foundry-platform-sdk" },
@@ -134,19 +134,19 @@ dependencies = [
     { name = "requests" },
 ]
 wheels = [
-    { url = "https://figbert.usw-18.palantirfoundry.com/artifacts/api/repositories/ri.artifacts.main.repository.e52652ac-c723-467b-a366-af0b20ba3e5e/contents/release/pypi/simple/cordially-sdk/cordially_sdk-0.3.0-py3-none-any.whl", hash = "sha256:5a2caee10beb02a72445907e2d40eeb97e58a454c91954acb9de9282ef09395e" },
+    { url = "https://figbert.usw-18.palantirfoundry.com/artifacts/api/repositories/ri.artifacts.main.repository.e52652ac-c723-467b-a366-af0b20ba3e5e/contents/release/pypi/simple/cordially-sdk/cordially_sdk-0.4.0-py3-none-any.whl", hash = "sha256:caa8f83ee50e555685933c36c2787dc7d311fff8ec34a37787e16c0b2e97db1f" },
 ]
 
 [[package]]
 name = "fastcore"
-version = "1.8.5"
+version = "1.8.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/eb/a8/c3d0a2684efb94d0149eec9781db317e414dd4cfe8667afb31a2f638ab7f/fastcore-1.8.5.tar.gz", hash = "sha256:5b6549f44f8df2d81ec378885c17a6a706a02bb40e38f14f6b44f5296180b76d", size = 76516, upload-time = "2025-07-08T06:17:38.135Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/37/48/e75bae5cb03594841f33b11f908f78858567913c1fdc08c48a24201e5d04/fastcore-1.8.6.tar.gz", hash = "sha256:b4c7d929c64f54107d8d9053572da672dc3411b959fdd1a4e3f77a8ac48fc07c", size = 76558, upload-time = "2025-07-23T23:03:41.266Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7b/0a/a572b458862649a67511977ef5b744d0e856d94e12fe47e860428755d7fc/fastcore-1.8.5-py3-none-any.whl", hash = "sha256:84b0301691926a2fd2ea45f0cc66a0fbb4b531244d2995cf69e67db75b4a40f6", size = 79259, upload-time = "2025-07-08T06:17:36.175Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/fd/e7cda452fdbb7135c82fbd0ece32306117ba456b34311b7c1275db4a99b3/fastcore-1.8.6-py3-none-any.whl", hash = "sha256:d2c0ccc455701a0b4398722275e8265cfe69cd9fab8faa696e9b34cb5fa777cc", size = 79303, upload-time = "2025-07-23T23:03:39.289Z" },
 ]
 
 [[package]]
@@ -375,7 +375,7 @@ wheels = [
 
 [[package]]
 name = "python-fasthtml"
-version = "0.12.21"
+version = "0.12.22"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -389,9 +389,9 @@ dependencies = [
     { name = "starlette" },
     { name = "uvicorn", extra = ["standard"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6e/fd/be07d516da3e344524277b7965e6cf5c9f24f0404f6be4f154b6580d113e/python_fasthtml-0.12.21.tar.gz", hash = "sha256:bd1d52cac49c22a6581c460ab4c85ece853365b442705f5ac5d640d1d5f0c3d1", size = 67741, upload-time = "2025-07-02T00:24:58.98Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/f2/eec9282202b6ae9f8c2484b00240e6225d565f594d54573b34a6415e2adc/python_fasthtml-0.12.22.tar.gz", hash = "sha256:ce112b0c5fd29701c38702d71ff519fcf835d8d123746fc63bcfdb1f971b503d", size = 68016, upload-time = "2025-07-24T01:48:06.015Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/f3/ca80484f31f82734414cae1af78a6d00e89aa919d0a2d83599d41b8a2bf6/python_fasthtml-0.12.21-py3-none-any.whl", hash = "sha256:b72f697f0d668fbd0077674f8ffc54ef12ba3899452727bcf38781f6f6464b8b", size = 70179, upload-time = "2025-07-02T00:24:57.595Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/7a/a0cc3e2367998350fda9dec56c083c7cc56abaaaf13b3bd44111c4a9222a/python_fasthtml-0.12.22-py3-none-any.whl", hash = "sha256:fe4092ecba1537f4ee98264507f9199d4c9fb038578178f00c6cce41932b367b", size = 70391, upload-time = "2025-07-24T01:48:04.28Z" },
 ]
 
 [[package]]
