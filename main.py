@@ -6,6 +6,8 @@ from cordially_sdk.ontology.objects import Event, Letter
 from fasthtml.common import *
 import humanize
 
+DELETE_STYLE = "background-color: #d93526; border-color: #d93526;"
+
 auth = UserTokenAuth(token=os.environ["FOUNDRY_TOKEN"])
 client = FoundryClient(auth=auth, hostname="https://figbert.usw-18.palantirfoundry.com")
 app, rt = fast_app()
@@ -70,6 +72,12 @@ def get():
                         A(
                             "Edit Letter",
                             hx_get=f"/letter?id={l.id}",
+                            hx_target="body",
+                        ),
+                        " • ",
+                        A(
+                            "Manage Invites",
+                            hx_get=f"/event/recipients?event={e.id}&letter={l.id}",
                             hx_target="body",
                         ),
                     ),
@@ -195,7 +203,7 @@ def get(id: str):
             Button("Save", style="margin-inline-end: 1rem;", hx_post="/event/edit"),
             Button(
                 "Delete",
-                style="background-color: #d93526; border-color: #d93526;",
+                style=DELETE_STYLE,
                 hx_delete="/event",
                 hx_confirm="Are you sure you want to delete the event?",
             ),
@@ -323,6 +331,79 @@ def post(data: EventForm):
         return Redirect(f"/letter?id={letter}")
 
     return Redirect("/admin")
+
+
+@rt("/event/recipients")
+def get(event: str, letter: str):
+    body = Div(P("No recipients"))
+    recipients = list(client.ontology.objects.Recipient.iterate())
+    if len(recipients) > 0:
+        elements = []
+        for person in recipients:
+            is_member = (
+                len(
+                    list(
+                        person.letter().where(Letter.object_type.id == letter).iterate()
+                    )
+                )
+                > 0
+            )
+
+            button = "Oops"
+            if is_member:
+                button = Button(
+                    "-",
+                    hx_delete=f"/event/recipients?id={letter}&person={person.id}",
+                    hx_swap="outerHTML",
+                    hx_trigger="click",
+                    style=f"{DELETE_STYLE} padding: revert; line-height: unset;",
+                )
+            else:
+                button = Button(
+                    "+",
+                    hx_post=f"/event/recipients?id={letter}&person={person.id}",
+                    hx_swap="outerHTML",
+                    hx_trigger="click",
+                    style="padding: revert; line-height: unset;",
+                )
+
+            elements.append(Li(f"{person.honorific} {person.name} ", button))
+        body = Div(Ul(*elements))
+
+    e = client.ontology.objects.Event.get(event)
+    return Titled(
+        e.name,
+        body,
+        Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
+    )
+
+
+@rt("/event/recipients")
+def post(id: str, person: str):
+    _ = client.ontology.actions.create_recipient_lt_gt_letter(
+        recipients=person, letter=id
+    )
+    return Button(
+        "-",
+        hx_delete=f"/event/recipients?id={id}&person={person}",
+        hx_swap="outerHTML",
+        hx_trigger="click",
+        style=f"{DELETE_STYLE} padding: revert; line-height: unset;",
+    )
+
+
+@rt("/event/recipients")
+def delete(id: str, person: str):
+    _ = client.ontology.actions.delete_recipient_lt_gt_letter(
+        recipients=person, letter=id
+    )
+    return Button(
+        "+",
+        hx_post=f"/event/recipients?id={id}&person={person}",
+        hx_swap="outerHTML",
+        hx_trigger="click",
+        style="padding: revert; line-height: unset;",
+    )
 
 
 @rt("/letter")
@@ -460,7 +541,7 @@ def get(id: str):
             ),
             Button(
                 "Delete",
-                style="background-color: #d93526; border-color: #d93526;",
+                style=DELETE_STYLE,
                 hx_delete="/recipient",
                 hx_confirm="Are you sure you want to delete the recipient?",
             ),
