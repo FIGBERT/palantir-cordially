@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from cordially_sdk import UserTokenAuth, FoundryClient
-from cordially_sdk.ontology.objects import Event
+from cordially_sdk.ontology.objects import Event, Letter
 from fasthtml.common import *
 import humanize
 
@@ -69,7 +69,15 @@ def get():
 
 @rt("/event")
 def delete(id: str):
-    _ = client.ontology.actions.delete_event(event=id)
+    letter = list(
+        client.ontology.objects.Letter.where(
+            Letter.object_type.event_id == id
+        ).iterate()
+    )[0].id
+    if letter is not None:
+        _ = client.ontology.actions.delete_letter(letter=letter)
+        _ = client.ontology.actions.delete_event(event=id)
+
     return Redirect("/admin")
 
 
@@ -273,6 +281,39 @@ def post(data: EventForm):
         food=data.food,
         dress_code=data.dress_code,
     )
+
+    event = list(
+        client.ontology.objects.Event.where(
+            Event.object_type.name == data.name
+        ).iterate()
+    )[0].id
+    if event is not None:
+        _ = client.ontology.actions.create_letter(event_id=event, content="")
+        letter = list(
+            client.ontology.objects.Letter.where(
+                Letter.object_type.event_id == event
+            ).iterate()
+        )[0].id
+        return Redirect(f"/letter?id={letter}")
+
+    return Redirect("/admin")
+
+
+@rt("/letter")
+def get(id: str):
+    return Titled(
+        "Compose Letter",
+        Form(
+            Input(type="hidden", name="id", value=id),
+            Textarea(name="content"),
+            Button("Save", hx_post="/letter"),
+        ),
+    )
+
+
+@rt("/letter")
+def post(id: str, content: str):
+    _ = client.ontology.actions.edit_letter(letter=id, content=content)
     return Redirect("/admin")
 
 
