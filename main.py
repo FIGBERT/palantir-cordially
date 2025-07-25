@@ -1,15 +1,11 @@
-import os
 from dataclasses import dataclass
 from datetime import datetime
-from cordially_sdk import UserTokenAuth, FoundryClient
-from cordially_sdk.ontology.objects import Event, Letter, Rsvp
 from fasthtml.common import *
 import humanize
+import palantir as pltr
 
 DELETE_STYLE = "background-color: #d93526; border-color: #d93526;"
 
-auth = UserTokenAuth(token=os.environ["FOUNDRY_TOKEN"])
-client = FoundryClient(auth=auth, hostname="https://figbert.usw-18.palantirfoundry.com")
 app, rt = fast_app()
 
 
@@ -35,12 +31,10 @@ def get():
 
 @rt("/admin")
 def get():
-    user = client.foundry_sdk.admin.User.get_current().given_name
+    user = pltr.get_user()
 
     body = Div(P("No events"))
-    events = list(
-        client.ontology.objects.Event.order_by(Event.object_type.when.asc()).iterate()
-    )
+    events = pltr.events()
 
     if len(events) > 0:
         elements = []
@@ -48,11 +42,7 @@ def get():
             timing = humanize.naturaldate(
                 e.when if e.when is not None else datetime.today()
             ).capitalize()
-            l = list(
-                client.ontology.objects.Letter.where(
-                    Letter.object_type.event_id == e.id
-                ).iterate()
-            )[0]
+            l = pltr.letter_by_event(e.id)
 
             elements.append(
                 Details(
@@ -110,21 +100,17 @@ def get():
 
 @rt("/event")
 def delete(id: str):
-    letter = list(
-        client.ontology.objects.Letter.where(
-            Letter.object_type.event_id == id
-        ).iterate()
-    )[0].id
+    letter = pltr.letter_by_event(id).id
     if letter is not None:
-        _ = client.ontology.actions.delete_letter(letter=letter)
-        _ = client.ontology.actions.delete_event(event=id)
+        pltr.delete_letter(letter)
+        pltr.delete_event(id)
 
     return Redirect("/admin")
 
 
 @rt("/event/edit")
 def get(id: str):
-    event = client.ontology.objects.Event.get(id)
+    event = pltr.event_by_id(id)
     if event is None:
         return Titled(
             "Error", P("Could not find this event"), A(Button("Back", href="/admin"))
@@ -220,23 +206,22 @@ def get(id: str):
 @rt("/event/edit")
 def post(data: EventForm, id: str):
     end = datetime.fromisoformat(data.end) if data.end != "" else datetime.min
-
-    _ = client.ontology.actions.edit_event(
-        event=id,
-        name=data.name,
-        location=data.location,
-        accepting_invites=True,
-        when=datetime.fromisoformat(data.when),
-        end=end,
-        food=data.food,
-        dress_code=data.dress_code,
+    pltr.edit_event(
+        id,
+        data.name,
+        data.location,
+        datetime.fromisoformat(data.when),
+        end,
+        data.food,
+        data.dress_code,
     )
+
     return Redirect("/admin")
 
 
 @rt("/event/create")
 def get():
-    count = len(list(client.ontology.objects.Event.iterate())) + 1
+    count = len(pltr.events()) + 1
     return Titled(
         "New Event",
         Form(
@@ -312,28 +297,19 @@ def get():
 @rt("/event/create")
 def post(data: EventForm):
     end = datetime.fromisoformat(data.end) if data.end != "" else datetime.min
-    _ = client.ontology.actions.create_event(
-        name=data.name,
-        location=data.location,
-        accepting_invites=True,
-        when=datetime.fromisoformat(data.when),
-        end=end,
-        food=data.food,
-        dress_code=data.dress_code,
+    pltr.create_event(
+        data.name,
+        data.location,
+        datetime.fromisoformat(data.when),
+        end,
+        data.food,
+        data.dress_code,
     )
 
-    event = list(
-        client.ontology.objects.Event.where(
-            Event.object_type.name == data.name
-        ).iterate()
-    )[0].id
+    event = pltr.event_by_name(data.name).id
     if event is not None:
-        _ = client.ontology.actions.create_letter(event_id=event, content="")
-        letter = list(
-            client.ontology.objects.Letter.where(
-                Letter.object_type.event_id == event
-            ).iterate()
-        )[0].id
+        pltr.create_letter(event)
+        letter = pltr.letter_by_event(event).id
         return Redirect(f"/letter?id={letter}")
 
     return Redirect("/admin")
@@ -342,18 +318,11 @@ def post(data: EventForm):
 @rt("/event/recipients")
 def get(event: str, letter: str):
     body = Div(P("No recipients"))
-    recipients = list(client.ontology.objects.Recipient.iterate())
+    recipients = pltr.recipients()
     if len(recipients) > 0:
         elements = []
         for person in recipients:
-            is_member = (
-                len(
-                    list(
-                        person.letter().where(Letter.object_type.id == letter).iterate()
-                    )
-                )
-                > 0
-            )
+            is_member = pltr.member_of_event(person, letter)
 
             buttons = []
             if is_member:
@@ -395,7 +364,7 @@ def get(event: str, letter: str):
             elements.append(Li(f"{person.honorific} {person.name} ", Div(*buttons)))
         body = Div(Ul(*elements))
 
-    e = client.ontology.objects.Event.get(event)
+    e = pltr.event_by_id(event)
     return Titled(
         e.name,
         body,
@@ -405,9 +374,7 @@ def get(event: str, letter: str):
 
 @rt("/event/recipients")
 def post(id: str, person: str):
-    _ = client.ontology.actions.create_recipient_lt_gt_letter(
-        recipients=person, letter=id
-    )
+    pltr.create_recipient_letter_link(person, id)
     return Div(
         Button(
             "-",
@@ -433,18 +400,12 @@ def post(id: str, person: str):
 
 @rt("/event/recipients")
 def delete(id: str, person: str):
-    _ = client.ontology.actions.delete_recipient_lt_gt_letter(
-        recipients=person, letter=id
-    )
+    pltr.delete_recipient_letter_link(person, id)
 
-    letter = client.ontology.objects.Letter.get(id)
-    rsvps = list(
-        client.ontology.objects.Rsvp.where(Rsvp.object_type.event_id == letter.event_id)
-        .where(Rsvp.object_type.recipient_id == person)
-        .iterate()
-    )
+    letter = pltr.letter_by_id(id)
+    rsvps = pltr.rsvps_between(letter.event_id, person)
     if len(rsvps) > 0:
-        _ = client.ontology.actions.delete_rsvp(rsvp=rsvps[0])
+        pltr.delete_rsvp(rsvps[0])
 
     return Div(
         Button(
@@ -460,17 +421,15 @@ def delete(id: str, person: str):
 @rt("/event/rsvps")
 def get(id: str):
     body = Div(P("No RSVPs"))
-    rsvps = list(
-        client.ontology.objects.Rsvp.where(Rsvp.object_type.event_id == id).iterate()
-    )
+    rsvps = pltr.rsvps_for(id)
     if len(rsvps) > 0:
         elements = []
         for rsvp in rsvps:
-            person = client.ontology.objects.Recipient.get(rsvp.recipient_id)
+            person = pltr.recipient(rsvp.recipient_id)
             elements.append(Li(f"{person.honorific} {person.name} "))
         body = Div(Ul(*elements))
 
-    e = client.ontology.objects.Event.get(id)
+    e = pltr.event_by_id(id)
     return Titled(
         f"{e.name} RSVPs",
         body,
@@ -513,7 +472,7 @@ def get(ltr: str, rcp: str):
 
 @rt("/letter")
 def get(id: str):
-    letter = client.ontology.objects.Letter.get(id)
+    letter = pltr.letter_by_id(id)
     if letter is None:
         return Titled(
             "Error", P("Could not find this letter."), A(Button("Back", href="/admin"))
@@ -531,14 +490,14 @@ def get(id: str):
 
 @rt("/letter")
 def post(id: str, content: str):
-    _ = client.ontology.actions.edit_letter(letter=id, content=content)
+    pltr.edit_letter(id, content)
     return Redirect("/admin")
 
 
 @rt("/recipients")
 def get():
     body = Div(P("No recipients"))
-    recipients = list(client.ontology.objects.Recipient.iterate())
+    recipients = pltr.recipients()
     if len(recipients) > 0:
         elements = []
         for person in recipients:
@@ -598,13 +557,13 @@ def get():
 
 @rt("/recipient/create")
 def post(name: str, hnr: str):
-    _ = client.ontology.actions.create_recipient(name=name, honorific=hnr)
+    pltr.create_recipient(name, hnr)
     return Redirect("/recipients")
 
 
 @rt("/recipient/edit")
 def get(id: str):
-    recipient = client.ontology.objects.Recipient.get(id)
+    recipient = pltr.recipient(id)
     if recipient is None:
         return Titled(
             "Error",
@@ -656,51 +615,38 @@ def get(id: str):
 
 @rt("/recipient/edit")
 def post(id: str, name: str, hnr: str):
-    _ = client.ontology.actions.edit_recipient(recipient=id, name=name, honorific=hnr)
+    pltr.edit_recipient(id, name, hnr)
     return Redirect("/recipients")
 
 
 @rt("/recipient")
 def delete(id: str):
-    _ = client.ontology.actions.delete_recipient(recipient=id)
+    pltr.delete_recipient(id)
     return Redirect("/recipients")
 
 
 @rt("/view/{ltr}/{rcp}")
 def get(ltr: str, rcp: str):
-    letter = client.ontology.objects.Letter.get(ltr)
-    recipient = client.ontology.objects.Recipient.get(rcp)
+    letter = pltr.letter_by_id(ltr)
+    recipient = pltr.recipient(rcp)
     if letter is None or recipient is None:
         return Titled(
             "Error", P("Not sure what happened."), A(Button("Back", href="/admin"))
         )
 
-    event = client.ontology.objects.Event.get(letter.event_id)
+    event = pltr.event_by_id(letter.event_id)
 
-    is_member = (
-        len(list(recipient.letter().where(Letter.object_type.id == ltr).iterate())) > 0
-    )
+    is_member = pltr.member_of_event(recipient, ltr)
     if not is_member:
         return Titled(
             "None shall pass.", P("Are you lost?"), A(Button("Back", href="/admin"))
         )
 
     timing = humanize.naturaldate(
-        event.when if event.when is not None else datetime.today()
+        event.when if event.when else datetime.today()
     ).capitalize()
 
-    is_rsvpd = (
-        len(
-            list(
-                client.ontology.objects.Rsvp.where(
-                    Rsvp.object_type.event_id == event.id
-                )
-                .where(Rsvp.object_type.recipient_id == recipient.id)
-                .iterate()
-            )
-        )
-        > 0
-    )
+    is_rsvpd = len(pltr.rsvps_between(event.id, recipient.id)) > 0
     button = Button(
         "RSVP",
         hx_post=f"/rsvp?evt={event.id}&rcp={recipient.id}",
@@ -731,7 +677,7 @@ def get(ltr: str, rcp: str):
 
 @rt("/rsvp")
 def post(evt: str, rcp: str):
-    _ = client.ontology.actions.create_rsvp(event_id=evt, recipient_id=rcp)
+    pltr.create_rsvp(evt, rcp)
     return Button(
         "Cancel",
         hx_delete=f"/rsvp?evt={evt}&rcp={rcp}",
@@ -742,12 +688,8 @@ def post(evt: str, rcp: str):
 
 @rt("/rsvp")
 def delete(evt: str, rcp: str):
-    rsvp = list(
-        client.ontology.objects.Rsvp.where(Rsvp.object_type.event_id == evt)
-        .where(Rsvp.object_type.recipient_id == rcp)
-        .iterate()
-    )[0]
-    _ = client.ontology.actions.delete_rsvp(rsvp=rsvp)
+    rsvp = pltr.rsvps_between(evt, rcp)[0]
+    pltr.delete_rsvp(rsvp)
     return (
         Button(
             "RSVP",
