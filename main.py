@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 from datetime import datetime
-from fasthtml.common import *
+
 import humanize
+from fasthtml import Redirect, ft, serve
+from fasthtml import fastapp as fa
+
 import palantir as pltr
+import templating as tmpl
 
-DELETE_STYLE = "background-color: #d93526; border-color: #d93526;"
-
-app, rt = fast_app()
+app, _ = fa.fast_app()
 
 
 @dataclass
@@ -19,283 +21,92 @@ class EventForm:
     end: str
 
 
-@rt("/")
-def get():
-    return Title("Cordially"), Hgroup(
-        H1("Welcome to Cordially."),
-        P("This is not how you use the app."),
+@app.get
+def index():
+    return ft.Title("Cordially"), ft.Hgroup(
+        ft.H1("Welcome to Cordially."),
+        ft.P("This is not how you use the app."),
         cls="container",
         style="text-align: center;",
     )
 
 
-@rt("/admin")
-def get():
+@app.get
+def admin():
     user = pltr.get_user()
 
-    body = Div(P("No events"))
+    body = ft.Div(ft.P("No events"))
     events = pltr.events()
 
     if len(events) > 0:
         elements = []
         for e in events:
             timing = humanize.naturaldate(
-                e.when if e.when is not None else datetime.today()
+                e.when if e.when else datetime.today()
             ).capitalize()
             l = pltr.letter_by_event(e.id)
 
             elements.append(
-                Details(
-                    Summary(e.name),
-                    Div(
-                        P("Dear <RECIPIENT>,"),
-                        P(
+                ft.Details(
+                    ft.Summary(e.name),
+                    ft.Div(
+                        ft.P("Dear <RECIPIENT>,"),
+                        ft.P(
                             f"You are cordially invited to {e.name} on {timing} at {e.location}."
                         ),
-                        P(l.content, style="white-space: pre;"),
-                        A(
+                        ft.P(l.content, style="white-space: pre;"),
+                        ft.A(
                             "Event Details",
-                            hx_get=f"/event/edit?id={e.id}",
+                            hx_get=event_editor.to(id=e.id),
                             hx_target="body",
                         ),
                         " • ",
-                        A(
+                        ft.A(
                             "Edit Letter",
-                            hx_get=f"/letter?id={l.id}",
+                            hx_get=letter_editor.to(id=l.id),
                             hx_target="body",
                         ),
                         " • ",
-                        A(
+                        ft.A(
                             "Manage Invites",
-                            hx_get=f"/event/recipients?event={e.id}&letter={l.id}",
+                            hx_get=event_recipients.to(event=e.id, letter=l.id),
                             hx_target="body",
                         ),
                         " • ",
-                        A(
+                        ft.A(
                             "View RSVPs",
-                            hx_get=f"/event/rsvps?id={e.id}",
+                            hx_get=event_rsvps.to(id=e.id),
                             hx_target="body",
                         ),
                     ),
                     name="event",
                 )
             )
-            elements.append(Hr())
+            elements.append(ft.Hr())
         if len(elements) > 1:
             elements.pop()
-        body = Div(*elements)
+        body = ft.Div(*elements)
 
-    return Titled(
+    return ft.Titled(
         f"Welcome, {user}.",
         body,
-        Button(
+        ft.Button(
             "New Event",
-            hx_get="/event/create",
+            hx_get=event_creator.to(),
             hx_target="body",
             style="margin-inline-end: 1rem;",
         ),
-        Button("Recipients", hx_get="/recipients", hx_target="body"),
+        ft.Button("Recipients", hx_get=recipients.to(), hx_target="body"),
     )
 
 
-@rt("/event")
-def delete(id: str):
-    letter = pltr.letter_by_event(id).id
-    if letter is not None:
-        pltr.delete_letter(letter)
-        pltr.delete_event(id)
-
-    return Redirect("/admin")
+@app.get("/event/create")
+def event_creator():
+    return tmpl.event(count=len(pltr.events()) + 1)
 
 
-@rt("/event/edit")
-def get(id: str):
-    event = pltr.event_by_id(id)
-    if event is None:
-        return Titled(
-            "Error", P("Could not find this event"), A(Button("Back", href="/admin"))
-        )
-
-    return Titled(
-        "Edit Event",
-        Form(
-            Input(type="hidden", name="id", value=id),
-            Label(
-                "Name",
-                Input(
-                    type="text",
-                    id="name",
-                    name="name",
-                    required=True,
-                    value=event.name,
-                ),
-                fr="name",
-            ),
-            Label(
-                "Location",
-                Input(
-                    type="text",
-                    id="location",
-                    name="location",
-                    placeholder="Chateau Bleu",
-                    required=True,
-                    value=event.location,
-                ),
-                fr="location",
-            ),
-            Div(
-                Label(
-                    "Start",
-                    Input(
-                        type="datetime-local",
-                        id="when",
-                        name="when",
-                        required=True,
-                        value=event.when.strftime("%Y-%m-%dT%H:%M:%S"),
-                    ),
-                    fr="when",
-                ),
-                Label(
-                    "End",
-                    Input(
-                        type="datetime-local",
-                        id="end",
-                        name="end",
-                        value=event.end.strftime("%Y-%m-%dT%H:%M:%S"),
-                    ),
-                    fr="end",
-                ),
-                cls="grid",
-            ),
-            Div(
-                Label(
-                    "Food",
-                    Input(
-                        type="text",
-                        id="food",
-                        name="food",
-                        placeholder="Homemade feast",
-                        value=event.food,
-                    ),
-                    fr="food",
-                ),
-                Label(
-                    "Dress Code",
-                    Input(
-                        type="text",
-                        id="dress_code",
-                        name="dress_code",
-                        placeholder="Black tie",
-                        value=event.dress_code,
-                    ),
-                    fr="dress_code",
-                ),
-                cls="grid",
-            ),
-            Button("Save", style="margin-inline-end: 1rem;", hx_post="/event/edit"),
-            Button(
-                "Delete",
-                style=DELETE_STYLE,
-                hx_delete="/event",
-                hx_confirm="Are you sure you want to delete the event?",
-            ),
-        ),
-    )
-
-
-@rt("/event/edit")
-def post(data: EventForm, id: str):
-    end = datetime.fromisoformat(data.end) if data.end != "" else datetime.min
-    pltr.edit_event(
-        id,
-        data.name,
-        data.location,
-        datetime.fromisoformat(data.when),
-        end,
-        data.food,
-        data.dress_code,
-    )
-
-    return Redirect("/admin")
-
-
-@rt("/event/create")
-def get():
-    count = len(pltr.events()) + 1
-    return Titled(
-        "New Event",
-        Form(
-            Label(
-                "Name",
-                Input(
-                    type="text",
-                    id="name",
-                    name="name",
-                    placeholder=f"Event {count}",
-                    required=True,
-                ),
-                fr="name",
-            ),
-            Label(
-                "Location",
-                Input(
-                    type="text",
-                    id="location",
-                    name="location",
-                    placeholder="Chateau Bleu",
-                    required=True,
-                ),
-                fr="location",
-            ),
-            Div(
-                Label(
-                    "Start",
-                    Input(type="datetime-local", id="when", name="when", required=True),
-                    fr="when",
-                ),
-                Label(
-                    "End",
-                    Input(type="datetime-local", id="end", name="end"),
-                    fr="end",
-                ),
-                cls="grid",
-            ),
-            Div(
-                Label(
-                    "Food",
-                    Input(
-                        type="text",
-                        id="food",
-                        name="food",
-                        placeholder="Homemade feast",
-                    ),
-                    fr="food",
-                ),
-                Label(
-                    "Dress Code",
-                    Input(
-                        type="text",
-                        id="dress_code",
-                        name="dress_code",
-                        placeholder="Black tie",
-                    ),
-                    fr="dress_code",
-                ),
-                cls="grid",
-            ),
-            Button(
-                "Create",
-                style="margin-inline-end: 1rem;",
-                hx_post="/event/create",
-                hx_target="body",
-            ),
-            Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
-        ),
-    )
-
-
-@rt("/event/create")
-def post(data: EventForm):
+@app.post("/event/create")
+def create_event(data: EventForm):
     end = datetime.fromisoformat(data.end) if data.end != "" else datetime.min
     pltr.create_event(
         data.name,
@@ -315,9 +126,42 @@ def post(data: EventForm):
     return Redirect("/admin")
 
 
-@rt("/event/recipients")
-def get(event: str, letter: str):
-    body = Div(P("No recipients"))
+@app.get("/event/edit")
+def event_editor(id: str):
+    event = pltr.event_by_id(id)
+    if event is None:
+        return tmpl.generic_err()
+    return tmpl.event(evt=event)
+
+
+@app.post("/event/edit")
+def edit_event(data: EventForm, id: str):
+    end = datetime.fromisoformat(data.end) if data.end != "" else datetime.min
+    pltr.edit_event(
+        id,
+        data.name,
+        data.location,
+        datetime.fromisoformat(data.when),
+        end,
+        data.food,
+        data.dress_code,
+    )
+    return Redirect("/admin")
+
+
+@app.delete
+def delete_event(id: str):
+    letter = pltr.letter_by_event(id).id
+    if letter is not None:
+        pltr.delete_letter(letter)
+        pltr.delete_event(id)
+
+    return Redirect("/admin")
+
+
+@app.get("/event/recipients")
+def event_recipients(event: str, letter: str):
+    body = ft.Div(ft.P("No recipients"))
     recipients = pltr.recipients()
     if len(recipients) > 0:
         elements = []
@@ -326,377 +170,208 @@ def get(event: str, letter: str):
 
             buttons = []
             if is_member:
-                buttons.append(
-                    Button(
-                        "-",
-                        hx_delete=f"/event/recipients?id={letter}&person={person.id}",
-                        hx_target="closest div",
-                        hx_swap="outerHTML",
-                        hx_trigger="click",
-                        style=f"{DELETE_STYLE} padding: revert; line-height: unset; margin-inline-end: 1rem;",
-                    )
-                )
-                buttons.append(
-                    Span(
-                        Button(
-                            "Link",
-                            hx_get=f"/event/link/show?ltr={letter}&rcp={person.id}",
-                            hx_target=f"closest span",
-                            hx_swap="outerHTML",
-                            hx_trigger="click",
-                            style="padding: revert; line-height: unset;",
-                            cls="secondary",
-                        ),
-                    )
-                )
+                buttons.append(tmpl.remove_recipient_button(letter, person.id))
+                buttons.append(tmpl.recipient_show_link_button(letter, person.id))
             else:
-                buttons.append(
-                    Button(
-                        "+",
-                        hx_post=f"/event/recipients?id={letter}&person={person.id}",
-                        hx_target="closest div",
-                        hx_swap="outerHTML",
-                        hx_trigger="click",
-                        style="padding: revert; line-height: unset; margin-inline-end: 1rem;",
-                    )
-                )
+                buttons.append(tmpl.add_recipient_button(letter, person.id))
 
-            elements.append(Li(f"{person.honorific} {person.name} ", Div(*buttons)))
-        body = Div(Ul(*elements))
+            elements.append(
+                ft.Li(f"{person.honorific} {person.name} ", ft.Div(*buttons))
+            )
+        body = ft.Div(ft.Ul(*elements))
 
     e = pltr.event_by_id(event)
-    return Titled(
-        e.name,
+    return ft.Titled(
+        f"{e.name if e else 'Event'}",
         body,
-        Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
+        ft.Button("Back", cls="secondary outline", hx_get=admin.to(), hx_target="body"),
     )
 
 
-@rt("/event/recipients")
-def post(id: str, person: str):
+@app.post("/event/recipients")
+def add_recipient_to_event(id: str, person: str):
     pltr.create_recipient_letter_link(person, id)
-    return Div(
-        Button(
-            "-",
-            hx_delete=f"/event/recipients?id={id}&person={person}",
-            hx_target="closest div",
-            hx_swap="outerHTML",
-            hx_trigger="click",
-            style=f"{DELETE_STYLE} padding: revert; line-height: unset; margin-inline-end: 1rem;",
-        ),
-        Span(
-            Button(
-                "Link",
-                hx_get=f"/event/link/show?ltr={id}&rcp={person}",
-                hx_target=f"closest span",
-                hx_swap="outerHTML",
-                hx_trigger="click",
-                style="padding: revert; line-height: unset;",
-                cls="secondary",
-            ),
-        ),
+    return ft.Div(
+        tmpl.remove_recipient_button(id, person),
+        tmpl.recipient_show_link_button(id, person),
     )
 
 
-@rt("/event/recipients")
-def delete(id: str, person: str):
+@app.delete("/event/recipients")
+def remove_recipient_from_event(id: str, person: str):
     pltr.delete_recipient_letter_link(person, id)
 
     letter = pltr.letter_by_id(id)
-    rsvps = pltr.rsvps_between(letter.event_id, person)
+    rsvps = pltr.rsvps_between(letter.event_id if letter else None, person)
     if len(rsvps) > 0:
         pltr.delete_rsvp(rsvps[0])
 
-    return Div(
-        Button(
-            "+",
-            hx_post=f"/event/recipients?id={id}&person={person}",
-            hx_swap="outerHTML",
-            hx_trigger="click",
-            style="padding: revert; line-height: unset;",
-        )
-    )
+    return ft.Div(tmpl.add_recipient_button(id, person))
 
 
-@rt("/event/rsvps")
-def get(id: str):
-    body = Div(P("No RSVPs"))
+@app.get("/event/link/show")
+def show_recipient_event_link(ltr: str, rcp: str):
+    return tmpl.recipient_link(ltr, rcp)
+
+
+@app.get("/event/link/hide")
+def hide_recipient_event_link(ltr: str, rcp: str):
+    return tmpl.recipient_show_link_button(ltr, rcp)
+
+
+@app.get("/event/rsvps")
+def event_rsvps(id: str):
+    body = ft.Div(ft.P("No RSVPs"))
     rsvps = pltr.rsvps_for(id)
     if len(rsvps) > 0:
         elements = []
         for rsvp in rsvps:
             person = pltr.recipient(rsvp.recipient_id)
-            elements.append(Li(f"{person.honorific} {person.name} "))
-        body = Div(Ul(*elements))
+            elements.append(
+                ft.Li(
+                    f"{person.honorific if person else ''} {person.name if person else ''} "
+                )
+            )
+        body = ft.Div(ft.Ul(*elements))
 
     e = pltr.event_by_id(id)
-    return Titled(
-        f"{e.name} RSVPs",
+    return ft.Titled(
+        f"{e.name if e else 'Your'} RSVPs",
         body,
-        Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
+        ft.Button("Back", cls="secondary outline", hx_get=admin.to(), hx_target="body"),
     )
 
 
-@rt("/event/link/show")
-def get(ltr: str, rcp: str):
-    return Span(
-        Input(type="text", value=f"/view/{ltr}/{rcp}", disabled=True),
-        Button(
-            "Hide",
-            hx_get=f"/event/link/hide?ltr={ltr}&rcp={rcp}",
-            hx_target=f"closest span",
-            hx_swap="outerHTML",
-            hx_trigger="click",
-            style="padding: revert; line-height: unset;",
-            cls="secondary",
-        ),
-        role="group",
-        style="margin-block-start: 1rem;",
-    )
-
-
-@rt("/event/link/hide")
-def get(ltr: str, rcp: str):
-    return Span(
-        Button(
-            "Link",
-            hx_get=f"/event/link/show?ltr={ltr}&rcp={rcp}",
-            hx_target=f"closest span",
-            hx_swap="outerHTML",
-            hx_trigger="click",
-            style="padding: revert; line-height: unset;",
-            cls="secondary",
-        ),
-    )
-
-
-@rt("/letter")
-def get(id: str):
+@app.get("/letter")
+def letter_editor(id: str):
     letter = pltr.letter_by_id(id)
     if letter is None:
-        return Titled(
-            "Error", P("Could not find this letter."), A(Button("Back", href="/admin"))
-        )
+        return tmpl.generic_err()
 
-    return Titled(
+    return ft.Titled(
         "Compose Letter",
-        Form(
-            Input(type="hidden", name="id", value=letter.id),
-            Textarea(letter.content, name="content"),
-            Button("Save", hx_post="/letter"),
+        ft.Form(
+            ft.Input(type="hidden", name="id", value=letter.id),
+            ft.Textarea(letter.content, name="content"),
+            ft.Button("Save", hx_post=edit_letter.to()),
         ),
     )
 
 
-@rt("/letter")
-def post(id: str, content: str):
+@app.post("/letter")
+def edit_letter(id: str, content: str):
     pltr.edit_letter(id, content)
     return Redirect("/admin")
 
 
-@rt("/recipients")
-def get():
-    body = Div(P("No recipients"))
+@app.get("/recipients")
+def recipients():
+    body = ft.Div(ft.P("No recipients"))
     recipients = pltr.recipients()
     if len(recipients) > 0:
         elements = []
         for person in recipients:
             elements.append(
-                Li(
+                ft.Li(
                     f"{person.honorific} {person.name} (",
-                    A(
+                    ft.A(
                         "Edit",
-                        hx_get=f"/recipient/edit?id={person.id}",
+                        hx_get=recipient_editor.to(id=person.id),
                         hx_target="body",
                     ),
                     ")",
                 )
             )
-        body = Div(Ul(*elements))
+        body = ft.Div(ft.Ul(*elements))
 
-    return Titled(
+    return ft.Titled(
         "Recipients",
         body,
-        Button(
+        ft.Button(
             "New Recipient",
-            hx_get="/recipient/create",
+            hx_get=recipient_creator.to(),
             hx_target="body",
             style="margin-inline-end: 1rem;",
         ),
-        Button("Back", cls="secondary outline", hx_get="/admin", hx_target="body"),
+        ft.Button("Back", cls="secondary outline", hx_get=admin.to(), hx_target="body"),
     )
 
 
-@rt("/recipient/create")
-def get():
-    return Titled(
-        "New Recipient",
-        Form(
-            Label(
-                "Honorific",
-                Input(type="text", id="hnr", name="hnr", placeholder="Prof."),
-                fr="hnr",
-            ),
-            Label(
-                "Name",
-                Input(type="text", id="name", name="name", placeholder="Diamond"),
-                fr="name",
-            ),
-            Button(
-                "Create",
-                style="margin-inline-end: 1rem;",
-                hx_post="/recipient/create",
-                hx_target="body",
-            ),
-            Button(
-                "Back", cls="secondary outline", hx_get="/recipients", hx_target="body"
-            ),
-        ),
-    )
+@app.get("/recipient/create")
+def recipient_creator():
+    return tmpl.recipient()
 
 
-@rt("/recipient/create")
-def post(name: str, hnr: str):
+@app.post("/recipient/create")
+def create_recipient(name: str, hnr: str):
     pltr.create_recipient(name, hnr)
     return Redirect("/recipients")
 
 
-@rt("/recipient/edit")
-def get(id: str):
+@app.get("/recipient/edit")
+def recipient_editor(id: str):
     recipient = pltr.recipient(id)
     if recipient is None:
-        return Titled(
-            "Error",
-            P("Could not find this recipient"),
-            A(Button("Back", href="/recipients")),
-        )
-
-    return Titled(
-        "New Recipient",
-        Form(
-            Input(type="hidden", name="id", value=id),
-            Label(
-                "Honorific",
-                Input(
-                    type="text",
-                    id="hnr",
-                    name="hnr",
-                    placeholder="Prof.",
-                    value=recipient.honorific,
-                ),
-                fr="hnr",
-            ),
-            Label(
-                "Name",
-                Input(
-                    type="text",
-                    id="name",
-                    name="name",
-                    placeholder="Diamond",
-                    value=recipient.name,
-                ),
-                fr="name",
-            ),
-            Button(
-                "Save",
-                style="margin-inline-end: 1rem;",
-                hx_post="/recipient/edit",
-                hx_target="body",
-            ),
-            Button(
-                "Delete",
-                style=DELETE_STYLE,
-                hx_delete="/recipient",
-                hx_confirm="Are you sure you want to delete the recipient?",
-            ),
-        ),
-    )
+        return tmpl.generic_err()
+    return tmpl.recipient(recipient)
 
 
-@rt("/recipient/edit")
-def post(id: str, name: str, hnr: str):
+@app.post("/recipient/edit")
+def edit_recipient(id: str, name: str, hnr: str):
     pltr.edit_recipient(id, name, hnr)
     return Redirect("/recipients")
 
 
-@rt("/recipient")
-def delete(id: str):
+@app.delete("/recipient")
+def delete_recipient(id: str):
     pltr.delete_recipient(id)
     return Redirect("/recipients")
 
 
-@rt("/view/{ltr}/{rcp}")
-def get(ltr: str, rcp: str):
+@app.post("/rsvp")
+def create_rsvp(evt: str, rcp: str):
+    pltr.create_rsvp(evt, rcp)
+    return tmpl.rsvp_button(evt, rcp, True)
+
+
+@app.delete("/rsvp")
+def delete_rsvp(evt: str, rcp: str):
+    rsvp = pltr.rsvps_between(evt, rcp)[0]
+    pltr.delete_rsvp(rsvp)
+    return tmpl.rsvp_button(evt, rcp)
+
+
+@app.get("/view/{ltr}/{rcp}")
+def bespoke_view(ltr: str, rcp: str):
     letter = pltr.letter_by_id(ltr)
     recipient = pltr.recipient(rcp)
     if letter is None or recipient is None:
-        return Titled(
-            "Error", P("Not sure what happened."), A(Button("Back", href="/admin"))
-        )
+        return tmpl.generic_err()
 
     event = pltr.event_by_id(letter.event_id)
+    if event is None:
+        return tmpl.generic_err()
 
     is_member = pltr.member_of_event(recipient, ltr)
     if not is_member:
-        return Titled(
-            "None shall pass.", P("Are you lost?"), A(Button("Back", href="/admin"))
-        )
+        return tmpl.permission_err()
 
     timing = humanize.naturaldate(
         event.when if event.when else datetime.today()
     ).capitalize()
 
     is_rsvpd = len(pltr.rsvps_between(event.id, recipient.id)) > 0
-    button = Button(
-        "RSVP",
-        hx_post=f"/rsvp?evt={event.id}&rcp={recipient.id}",
-        hx_swap="outerHTML",
-        style="display: block; margin-inline: auto;",
-    )
-    if is_rsvpd:
-        button = Button(
-            "Cancel",
-            hx_delete=f"/rsvp?evt={event.id}&rcp={recipient.id}",
-            hx_swap="outerHTML",
-            style=f"{DELETE_STYLE} display: block; margin-inline: auto;",
-        )
-
-    return Title(event.name), Main(
-        Article(
-            P(f"Dear {recipient.honorific} {recipient.name},"),
-            P(
+    return ft.Title(event.name), ft.Main(
+        ft.Article(
+            ft.P(f"Dear {recipient.honorific} {recipient.name},"),
+            ft.P(
                 f"You are cordially invited to {event.name} on {timing} at {event.location}."
             ),
-            P(letter.content, style="white-space: pre-wrap;"),
+            ft.P(letter.content, style="white-space: pre-wrap;"),
             style="max-width: 25rem; margin-inline: auto;",
         ),
-        button,
+        tmpl.rsvp_button(event.id, recipient.id, is_rsvpd),
         cls="container",
-    )
-
-
-@rt("/rsvp")
-def post(evt: str, rcp: str):
-    pltr.create_rsvp(evt, rcp)
-    return Button(
-        "Cancel",
-        hx_delete=f"/rsvp?evt={evt}&rcp={rcp}",
-        hx_swap="outerHTML",
-        style=f"{DELETE_STYLE} display: block; margin-inline: auto;",
-    )
-
-
-@rt("/rsvp")
-def delete(evt: str, rcp: str):
-    rsvp = pltr.rsvps_between(evt, rcp)[0]
-    pltr.delete_rsvp(rsvp)
-    return (
-        Button(
-            "RSVP",
-            hx_post=f"/rsvp?evt={evt}&rcp={rcp}",
-            hx_swap="outerHTML",
-            style="display: block; margin-inline: auto;",
-        ),
     )
 
 

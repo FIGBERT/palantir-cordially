@@ -1,8 +1,8 @@
 import os
 from datetime import datetime
-from cordially_sdk import UserTokenAuth, FoundryClient
-from cordially_sdk.ontology.objects import Event, Letter, Rsvp, Recipient
 
+from cordially_sdk import FoundryClient, UserTokenAuth
+from cordially_sdk.ontology.objects import Event, Letter, Recipient, Rsvp
 
 auth = UserTokenAuth(token=os.environ["FOUNDRY_TOKEN"])
 client = FoundryClient(auth=auth, hostname="https://figbert.usw-18.palantirfoundry.com")
