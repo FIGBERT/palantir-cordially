@@ -116,14 +116,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cordially-sdk", specifier = "==0.5.0" },
+    { name = "cordially-sdk", specifier = "==0.7.0" },
     { name = "humanize", specifier = ">=4.12.3" },
     { name = "python-fasthtml", specifier = ">=0.12.21" },
 ]
 
 [[package]]
 name = "cordially-sdk"
-version = "0.5.0"
+version = "0.7.0"
 source = { registry = "https://figbert.usw-18.palantirfoundry.com/artifacts/api/repositories/ri.artifacts.main.repository.e52652ac-c723-467b-a366-af0b20ba3e5e/contents/release/pypi/simple" }
 dependencies = [
     { name = "foundry-platform-sdk" },
@@ -134,7 +134,7 @@ dependencies = [
     { name = "requests" },
 ]
 wheels = [
-    { url = "https://figbert.usw-18.palantirfoundry.com/artifacts/api/repositories/ri.artifacts.main.repository.e52652ac-c723-467b-a366-af0b20ba3e5e/contents/release/pypi/simple/cordially-sdk/cordially_sdk-0.5.0-py3-none-any.whl", hash = "sha256:88ce08d1f406b590d136da44ad113d5aca4db807c9f3b8271189b3e91bb52207" },
+    { url = "https://figbert.usw-18.palantirfoundry.com/artifacts/api/repositories/ri.artifacts.main.repository.e52652ac-c723-467b-a366-af0b20ba3e5e/contents/release/pypi/simple/cordially-sdk/cordially_sdk-0.7.0-py3-none-any.whl", hash = "sha256:6905edcf05e88317377dd2d68afb4634e7beaa527fa989e701f86d0e54483172" },
 ]
 
 [[package]]

@@ -209,10 +209,10 @@ def recipient(rcp: Recipient | None = None) -> ft.FT:
     )
 
 
-def add_recipient_button(ltr: str, rcp: str | None) -> ft.FT:
+def add_recipient_button(event: str | None, rcp: str | None) -> ft.FT:
     return ft.Button(
         "+",
-        hx_post=f"/event/recipients?id={ltr}&person={rcp}",
+        hx_post=f"/rsvp?evt={event}&rcp={rcp}",
         hx_target="closest div",
         hx_swap="outerHTML",
         hx_trigger="click",
@@ -220,10 +220,10 @@ def add_recipient_button(ltr: str, rcp: str | None) -> ft.FT:
     )
 
 
-def remove_recipient_button(ltr: str, rcp: str | None) -> ft.FT:
+def remove_recipient_button(rsvp: str | None) -> ft.FT:
     return ft.Button(
         "-",
-        hx_delete=f"/event/recipients?id={ltr}&person={rcp}",
+        hx_delete=f"/rsvp?id={rsvp}",
         hx_target="closest div",
         hx_swap="outerHTML",
         hx_trigger="click",
@@ -231,11 +231,11 @@ def remove_recipient_button(ltr: str, rcp: str | None) -> ft.FT:
     )
 
 
-def recipient_show_link_button(ltr: str, rcp: str | None) -> ft.FT:
+def recipient_show_link_button(rsvp: str | None) -> ft.FT:
     return ft.Span(
         ft.Button(
             "Link",
-            hx_get=f"/event/link/show?ltr={ltr}&rcp={rcp}",
+            hx_get=f"/event/link/show?id={rsvp}",
             hx_target=f"closest span",
             hx_swap="outerHTML",
             hx_trigger="click",
@@ -245,12 +245,12 @@ def recipient_show_link_button(ltr: str, rcp: str | None) -> ft.FT:
     )
 
 
-def recipient_link(ltr: str, rcp: str) -> ft.FT:
+def recipient_link(rsvp: str) -> ft.FT:
     return ft.Span(
-        ft.Input(type="text", value=f"/view/{ltr}/{rcp}", disabled=True),
+        ft.Input(type="text", value=f"/view/{rsvp}", disabled=True),
         ft.Button(
             "Hide",
-            hx_get=f"/event/link/hide?ltr={ltr}&rcp={rcp}",
+            hx_get=f"/event/link/hide?id={rsvp}",
             hx_target=f"closest span",
             hx_swap="outerHTML",
             hx_trigger="click",
@@ -262,18 +262,10 @@ def recipient_link(ltr: str, rcp: str) -> ft.FT:
     )
 
 
-def rsvp_button(evt: str | None, rcp: str | None, cancel: bool = False) -> ft.FT:
-    if not cancel:
-        return ft.Button(
-            "RSVP",
-            hx_post=f"/rsvp?evt={evt}&rcp={rcp}",
-            hx_swap="outerHTML",
-            style="display: block; margin-inline: auto;",
-        )
-    else:
-        return ft.Button(
-            "Cancel",
-            hx_delete=f"/rsvp?evt={evt}&rcp={rcp}",
-            hx_swap="outerHTML",
-            style=f"{DELETE_STYLE} display: block; margin-inline: auto;",
-        )
+def rsvp_button(id: str, cancel: bool = False) -> ft.FT:
+    return ft.Button(
+        f"{'Cancel' if cancel else 'RSVP'}",
+        hx_post=f"/confirm?id={id}&val={not cancel}",
+        hx_swap="outerHTML",
+        style=f"{DELETE_STYLE if cancel else ''}display: block; margin-inline: auto;",
+    )

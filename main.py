@@ -69,7 +69,7 @@ def admin():
                         " • ",
                         ft.A(
                             "Manage Invites",
-                            hx_get=event_recipients.to(event=e.id, letter=l.id),
+                            hx_get=event_recipients.to(event=e.id),
                             hx_target="body",
                         ),
                         " • ",
@@ -149,7 +149,7 @@ def edit_event(data: EventForm, id: str):
     return Redirect("/admin")
 
 
-@app.delete
+@app.delete("/event")
 def delete_event(id: str):
     letter = pltr.letter_by_event(id).id
     if letter is not None:
@@ -160,20 +160,20 @@ def delete_event(id: str):
 
 
 @app.get("/event/recipients")
-def event_recipients(event: str, letter: str):
+def event_recipients(event: str):
     body = ft.Div(ft.P("No recipients"))
     recipients = pltr.recipients()
     if len(recipients) > 0:
         elements = []
         for person in recipients:
-            is_member = pltr.member_of_event(person, letter)
+            member = pltr.rsvp_between(person.id, event)
 
             buttons = []
-            if is_member:
-                buttons.append(tmpl.remove_recipient_button(letter, person.id))
-                buttons.append(tmpl.recipient_show_link_button(letter, person.id))
+            if member:
+                buttons.append(tmpl.remove_recipient_button(member.primary_key_))
+                buttons.append(tmpl.recipient_show_link_button(member.primary_key_))
             else:
-                buttons.append(tmpl.add_recipient_button(letter, person.id))
+                buttons.append(tmpl.add_recipient_button(event, person.id))
 
             elements.append(
                 ft.Li(f"{person.honorific} {person.name} ", ft.Div(*buttons))
@@ -188,51 +188,32 @@ def event_recipients(event: str, letter: str):
     )
 
 
-@app.post("/event/recipients")
-def add_recipient_to_event(id: str, person: str):
-    pltr.create_recipient_letter_link(person, id)
-    return ft.Div(
-        tmpl.remove_recipient_button(id, person),
-        tmpl.recipient_show_link_button(id, person),
-    )
-
-
-@app.delete("/event/recipients")
-def remove_recipient_from_event(id: str, person: str):
-    pltr.delete_recipient_letter_link(person, id)
-
-    letter = pltr.letter_by_id(id)
-    rsvps = pltr.rsvps_between(letter.event_id if letter else None, person)
-    if len(rsvps) > 0:
-        pltr.delete_rsvp(rsvps[0])
-
-    return ft.Div(tmpl.add_recipient_button(id, person))
-
-
 @app.get("/event/link/show")
-def show_recipient_event_link(ltr: str, rcp: str):
-    return tmpl.recipient_link(ltr, rcp)
+def show_recipient_event_link(id: str):
+    return tmpl.recipient_link(id)
 
 
 @app.get("/event/link/hide")
-def hide_recipient_event_link(ltr: str, rcp: str):
-    return tmpl.recipient_show_link_button(ltr, rcp)
+def hide_recipient_event_link(id: str):
+    return tmpl.recipient_show_link_button(id)
 
 
 @app.get("/event/rsvps")
 def event_rsvps(id: str):
     body = ft.Div(ft.P("No RSVPs"))
-    rsvps = pltr.rsvps_for(id)
+    rsvps = pltr.rsvps_for(event=id)
     if len(rsvps) > 0:
         elements = []
         for rsvp in rsvps:
-            person = pltr.recipient(rsvp.recipient_id)
-            elements.append(
-                ft.Li(
-                    f"{person.honorific if person else ''} {person.name if person else ''} "
+            if rsvp.confirmed:
+                person = pltr.recipient(rsvp.recipient_id)
+                elements.append(
+                    ft.Li(
+                        f"{person.honorific if person else ''} {person.name if person else ''} "
+                    )
                 )
-            )
-        body = ft.Div(ft.Ul(*elements))
+        if len(elements) > 0:
+            body = ft.Div(ft.Ul(*elements))
 
     e = pltr.event_by_id(id)
     return ft.Titled(
@@ -331,36 +312,51 @@ def delete_recipient(id: str):
 @app.post("/rsvp")
 def create_rsvp(evt: str, rcp: str):
     pltr.create_rsvp(evt, rcp)
-    return tmpl.rsvp_button(evt, rcp, True)
+    rsvp = pltr.rsvp_between(rcp, evt)
+    id = rsvp.primary_key_ if rsvp else ""
+
+    return ft.Div(
+        tmpl.remove_recipient_button(id),
+        tmpl.recipient_show_link_button(id),
+    )
 
 
 @app.delete("/rsvp")
-def delete_rsvp(evt: str, rcp: str):
-    rsvp = pltr.rsvps_between(evt, rcp)[0]
-    pltr.delete_rsvp(rsvp)
-    return tmpl.rsvp_button(evt, rcp)
+def delete_rsvp(id: str):
+    rsvp = pltr.rsvp(id)
+    evt = rsvp.event_id if rsvp else ""
+    rcp = rsvp.recipient_id if rsvp else ""
+
+    pltr.delete_rsvp(id)
+    return ft.Div(tmpl.add_recipient_button(evt, rcp))
 
 
-@app.get("/view/{ltr}/{rcp}")
-def bespoke_view(ltr: str, rcp: str):
-    letter = pltr.letter_by_id(ltr)
-    recipient = pltr.recipient(rcp)
-    if letter is None or recipient is None:
-        return tmpl.generic_err()
+@app.post("/confirm")
+def confirm(id: str, val: bool):
+    pltr.update_rsvp_status(id, val)
+    return tmpl.rsvp_button(id, val)
 
-    event = pltr.event_by_id(letter.event_id)
-    if event is None:
-        return tmpl.generic_err()
 
-    is_member = pltr.member_of_event(recipient, ltr)
-    if not is_member:
+@app.get("/view/{id}")
+def bespoke_view(id: str):
+    rsvp = pltr.rsvp(id)
+    if rsvp is None:
         return tmpl.permission_err()
+
+    event = pltr.event_by_id(rsvp.event_id)
+    recipient = pltr.recipient(rsvp.recipient_id)
+    if event is None or recipient is None:
+        return tmpl.generic_err()
+
+    letter = event.letter()
+    if letter is None:
+        return tmpl.generic_err()
 
     timing = humanize.naturaldate(
         event.when if event.when else datetime.today()
     ).capitalize()
 
-    is_rsvpd = len(pltr.rsvps_between(event.id, recipient.id)) > 0
+    is_rsvpd = rsvp.confirmed if rsvp.confirmed else False
     return ft.Title(event.name), ft.Main(
         ft.Article(
             ft.P(f"Dear {recipient.honorific} {recipient.name},"),
@@ -370,7 +366,7 @@ def bespoke_view(ltr: str, rcp: str):
             ft.P(letter.content, style="white-space: pre-wrap;"),
             style="max-width: 25rem; margin-inline: auto;",
         ),
-        tmpl.rsvp_button(event.id, recipient.id, is_rsvpd),
+        tmpl.rsvp_button(id, is_rsvpd),
         cls="container",
     )
 

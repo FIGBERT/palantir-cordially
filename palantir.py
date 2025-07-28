@@ -117,32 +117,8 @@ def delete_recipient(id: str):
     _ = client.ontology.actions.delete_recipient(recipient=id)
 
 
-def create_recipient_letter_link(rcp: str, ltr: str):
-    _ = client.ontology.actions.create_recipient_lt_gt_letter(
-        recipients=rcp, letter=ltr
-    )
-
-
-def delete_recipient_letter_link(rcp: str, ltr: str):
-    _ = client.ontology.actions.delete_recipient_lt_gt_letter(
-        recipients=rcp, letter=ltr
-    )
-
-
-def member_of_event(rcp: Recipient, letter: str) -> bool:
-    return len(list(rcp.letter().where(Letter.object_type.id == letter).iterate())) > 0
-
-
-def create_rsvp(event: str, rcp: str):
-    _ = client.ontology.actions.create_rsvp(event_id=event, recipient_id=rcp)
-
-
-def rsvps_between(event: str | None, rcp: str | None) -> list[Rsvp]:
-    return list(
-        client.ontology.objects.Rsvp.where(Rsvp.object_type.event_id == event)
-        .where(Rsvp.object_type.recipient_id == rcp)
-        .iterate()
-    )
+def rsvp(id: str) -> Rsvp | None:
+    return client.ontology.objects.Rsvp.get(id)
 
 
 def rsvps_for(event: str) -> list[Rsvp]:
@@ -151,5 +127,23 @@ def rsvps_for(event: str) -> list[Rsvp]:
     )
 
 
-def delete_rsvp(obj: Rsvp):
-    _ = client.ontology.actions.delete_rsvp(rsvp=obj)
+def rsvp_between(rcp: str | None, evt: str) -> Rsvp | None:
+    rsvps = rsvps_for(evt)
+    for rsvp in rsvps:
+        if rsvp.recipient_id == rcp:
+            return rsvp
+    return None
+
+
+def create_rsvp(event: str, rcp: str):
+    _ = client.ontology.actions.create_rsvp(
+        event_id=event, recipient_id=rcp, confirmed=False
+    )
+
+
+def delete_rsvp(id: str):
+    _ = client.ontology.actions.delete_rsvp(rsvp=id)
+
+
+def update_rsvp_status(id: str, status: bool):
+    _ = client.ontology.actions.edit_rsvp(rsvp=id, confirmed=status)
